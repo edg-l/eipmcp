@@ -108,7 +108,7 @@ def eip_required_by(number: int, repo: str = "eips") -> list[dict[str, Any]]:
 def eip_referenced_in(number: int, repo: str | None = None) -> list[dict[str, Any]]:
     """Spec/test/EIP files that mention `EIP-<number>` in body or path.
 
-    Optionally filter by source repo (e.g. 'consensus-specs', 'execution-spec-tests').
+    Optionally filter by source repo (e.g. 'consensus-specs', 'execution-specs').
     """
     with storage.connect() as conn:
         return storage.refs_for_eip(conn, number, repo=repo)

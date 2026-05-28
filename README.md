@@ -118,6 +118,94 @@ Repo management:
 - `eip://{number}` — formatted EIP doc (URI scheme for MCP clients/IDEs)
 - `erc://{number}` — formatted ERC doc
 
+## Useful calls
+
+Concrete things this MCP unlocks. Each block shows the underlying tool call —
+in Claude you'd just describe the goal in natural language.
+
+### "What's in Pectra?"
+
+```
+get_hardfork("pectra")
+```
+
+Alias-resolves to `prague/electra`, finds Meta EIP-7600, returns all 13
+included EIPs with status/type/category. One call, full fork snapshot.
+
+### "Show me every test that touches EIP-7702"
+
+```
+tests_for_eip(7702)
+```
+
+Returns every file under `execution-specs/tests/` that mentions 7702 by path
+or body. Picks up the obvious `prague/eip7702_set_code_tx/*` and the
+non-obvious `amsterdam/eip7928_block_level_access_lists/test_block_access_lists_eip7702.py`
+— the kind of EL-impl interaction you'd otherwise miss.
+
+### "Which consensus-layer specs reference EIP-4844?"
+
+```
+eip_referenced_in(4844, repo="consensus-specs")
+```
+
+Returns the 9 files under `specs/deneb/` that mention it (beacon-chain,
+fork-choice, polynomial-commitments, p2p-interface, light-client/*). Useful
+for tracing where a CL change originates.
+
+### "What's the spec text for execution-layer triggerable withdrawals?"
+
+```
+get_spec("execution-specs", "src/ethereum/prague/requests.py")
+```
+
+Direct read of any indexed spec file. Pair with `list_specs(repo, glob="*prague*")`
+to discover what's there.
+
+### "Find EIPs about blob transactions"
+
+```
+search_eips("blob transactions", limit=5)
+```
+
+FTS5 bm25 ranking + snippets across title, description, and body. Beats
+keyword-grep through 1500+ markdown files; tokens are AND-joined and safe
+against special FTS operators.
+
+### "What's pending against EIP-7702 right now?"
+
+```
+pending_prs_for_eip(7702)
+```
+
+Live GitHub search via the local `gh` CLI for open PRs that reference the EIP.
+Useful for spotting "draft about to change under your feet" before you start
+implementing.
+
+### "Did EIP-7702 change since I last synced?"
+
+```
+diff_eip(7702, since="previous_sync")
+```
+
+Unified git diff between the prior sync's commit and current HEAD. Returns
+`{empty: true}` when nothing changed. Pair with `diff_spec` for CL/EL spec
+files.
+
+### "What EIPs depend on EIP-1559?"
+
+```
+eip_required_by(1559)
+```
+
+Reverse graph from the `requires:` frontmatter — impact analysis without
+grepping every other EIP.
+
+### "Read the full EIP inline as a resource"
+
+URI: `eip://7702` (or `erc://20`). Surfaces in IDEs and the Claude Code
+resource picker, so the model can pull it on demand without a tool call.
+
 ## `since` values for `diff_*`
 
 - `'previous_sync'` (default): diff against the sync immediately before the latest
