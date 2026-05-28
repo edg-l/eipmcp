@@ -14,11 +14,16 @@ def test_parse_ttl_units():
     assert sync.parse_ttl("garbage") == 0
 
 
-def test_stale_repos_empty_db_flags_all(tmp_path, monkeypatch):
+def test_stale_repos_empty_db_skips_uninitialized(tmp_path, monkeypatch):
     monkeypatch.setenv("EIPMCP_DATA_DIR", str(tmp_path))
-    stale = sync.stale_repos(60)
-    # No sync_log rows → every tracked repo is stale.
+    # Default: never-synced repos are NOT counted (keeps startup fast).
+    assert sync.stale_repos(60) == []
+
+
+def test_stale_repos_include_uninitialized_flag(tmp_path, monkeypatch):
+    monkeypatch.setenv("EIPMCP_DATA_DIR", str(tmp_path))
     from eipmcp.config import REPOS
+    stale = sync.stale_repos(60, include_uninitialized=True)
     assert set(stale) == set(REPOS)
 
 

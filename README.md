@@ -60,10 +60,11 @@ Register with Claude Code (user scope = available in every project):
 claude mcp add --scope user eipmcp -- eipmcp serve
 ```
 
-With auto-sync on stale data (daily):
+Auto-sync runs daily by default (see [Auto-sync TTL](#auto-sync-ttl) below).
+To override:
 
 ```bash
-claude mcp add --scope user -e EIPMCP_SYNC_TTL=24h eipmcp -- eipmcp serve
+claude mcp add --scope user -e EIPMCP_SYNC_TTL=7d eipmcp -- eipmcp serve
 ```
 
 Or paste into `~/.claude.json` / project config:
@@ -71,11 +72,7 @@ Or paste into `~/.claude.json` / project config:
 ```json
 {
   "mcpServers": {
-    "eipmcp": {
-      "command": "eipmcp",
-      "args": ["serve"],
-      "env": { "EIPMCP_SYNC_TTL": "24h" }
-    }
+    "eipmcp": { "command": "eipmcp", "args": ["serve"] }
   }
 }
 ```
@@ -129,12 +126,18 @@ Repo management:
 
 ## Auto-sync TTL
 
-By default no automatic pulls. Set `EIPMCP_SYNC_TTL` to enable auto-sync on
-server start when any repo is stale:
+`eipmcp serve` auto-pulls stale repos on startup. **Default: `24h`.** Override
+with the `EIPMCP_SYNC_TTL` env var; set to `0` to disable.
 
 ```bash
-EIPMCP_SYNC_TTL=24h eipmcp serve     # accepts 30s, 5m, 24h, 1d, or seconds
+EIPMCP_SYNC_TTL=0   eipmcp serve     # disable auto-sync
+EIPMCP_SYNC_TTL=7d  eipmcp serve     # weekly
+EIPMCP_SYNC_TTL=30m eipmcp serve     # accepts s/m/h/d or bare seconds
 ```
+
+Repos that have never been synced are **not** auto-fetched — that keeps the
+first server start instant. Run `eipmcp sync` once after install to initialize;
+after that, every `serve` invocation refreshes anything older than the TTL.
 
 ## Dev
 

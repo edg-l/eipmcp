@@ -67,8 +67,16 @@ def parse_ttl(value: str) -> int:
         return 0
 
 
-def stale_repos(ttl_seconds: int) -> list[str]:
-    """Repos whose last sync is older than `ttl_seconds` (or never synced)."""
+DEFAULT_TTL = "24h"
+
+
+def stale_repos(ttl_seconds: int, include_uninitialized: bool = False) -> list[str]:
+    """Repos whose last sync is older than `ttl_seconds`.
+
+    By default, repos that have never been synced are NOT counted as stale —
+    that keeps `eipmcp serve` startup instant when the user hasn't run
+    `eipmcp sync` yet. Set `include_uninitialized=True` to flag them too.
+    """
     if ttl_seconds <= 0:
         return []
     cutoff = datetime.now(timezone.utc) - timedelta(seconds=ttl_seconds)
@@ -77,7 +85,9 @@ def stale_repos(ttl_seconds: int) -> list[str]:
         for key in REPOS:
             last = storage.last_sync(conn, key)
             if not last:
-                stale.append(key); continue
+                if include_uninitialized:
+                    stale.append(key)
+                continue
             try:
                 ts = datetime.fromisoformat(last["synced_at"])
             except ValueError:
@@ -87,9 +97,25 @@ def stale_repos(ttl_seconds: int) -> list[str]:
     return stale
 
 
+def _warn_if_uninitialized() -> None:
+    with storage.connect() as conn:
+        uninit = [k for k in REPOS if not storage.last_sync(conn, k)]
+    if uninit:
+        print(
+            f"[eipmcp] note: never-synced repos: {uninit}. "
+            f"Run `eipmcp sync` once to populate.",
+            file=sys.stderr,
+            flush=True,
+        )
+
+
 def auto_sync_if_stale() -> list[dict[str, Any]]:
-    """Sync any stale repos if EIPMCP_SYNC_TTL is set. Returns sync results (possibly [])."""
-    ttl = parse_ttl(os.environ.get("EIPMCP_SYNC_TTL", "0"))
+    """Sync any stale (previously initialized) repos. TTL controlled by
+    EIPMCP_SYNC_TTL; defaults to 24h. Set to 0 to disable."""
+    ttl = parse_ttl(os.environ.get("EIPMCP_SYNC_TTL", DEFAULT_TTL))
+    _warn_if_uninitialized()
+    if ttl <= 0:
+        return []
     stale = stale_repos(ttl)
     if not stale:
         return []
