@@ -34,3 +34,24 @@ def test_diff_and_changed_files(tmp_path: Path):
 
     assert repos.file_at(repo, old, "a.md").strip() == "hello"
     assert repos.file_at(repo, new, "a.md").strip() == "hello world"
+
+
+def test_default_branch_preserves_multi_segment_name(tmp_path: Path):
+    """Regression: execution-specs uses `forks/amsterdam` as its default branch."""
+    r = tmp_path / "r"
+    r.mkdir()
+    _git(r, "init", "-q", "-b", "main")
+    _git(r, "config", "user.email", "t@t")
+    _git(r, "config", "user.name", "t")
+    (r / "a").write_text("x\n")
+    _git(r, "add", ".")
+    _git(r, "commit", "-q", "-m", "x")
+
+    sha = _git(r, "rev-parse", "HEAD").strip()
+    refs_dir = r / ".git" / "refs" / "remotes" / "origin" / "forks"
+    refs_dir.mkdir(parents=True)
+    (refs_dir / "amsterdam").write_text(sha + "\n")
+    _git(r, "symbolic-ref", "refs/remotes/origin/HEAD",
+         "refs/remotes/origin/forks/amsterdam")
+
+    assert repos.default_branch(r) == "forks/amsterdam"

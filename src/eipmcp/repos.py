@@ -64,11 +64,18 @@ def ensure_clone(spec: RepoSpec, shallow_depth: int | None = None) -> Path:
 
 
 def pull(spec: RepoSpec) -> tuple[str, str]:
-    """Fetch + fast-forward. Returns (old_head, new_head). Streams progress."""
+    """Fetch + fast-forward to whatever upstream's default branch currently is."""
     path = ensure_clone(spec)
     old = head(path)
     print(f"[eipmcp] fetching {spec.key}", file=sys.stderr, flush=True)
     _run(["fetch", "--progress", "--prune", "origin"], cwd=path, stream=True)
+    # Refresh origin/HEAD so we follow upstream if they rename the default branch
+    # (e.g. execution-specs flips from forks/amsterdam to forks/glamsterdam).
+    try:
+        _run(["remote", "set-head", "origin", "--auto"], cwd=path)
+    except GitError as e:
+        print(f"[eipmcp] warn: could not refresh origin/HEAD: {e}",
+              file=sys.stderr, flush=True)
     default = default_branch(path)
     _run(["reset", "--hard", f"origin/{default}"], cwd=path)
     new = head(path)
@@ -79,13 +86,19 @@ def head(path: Path) -> str:
     return _run(["rev-parse", "HEAD"], cwd=path).strip()
 
 
+_ORIGIN_REF_PREFIX = "refs/remotes/origin/"
+
+
 def default_branch(path: Path) -> str:
-    # Try `origin/HEAD` symbolic ref; fall back to "master" then "main".
+    """Resolve upstream's current default branch, preserving multi-segment names
+    (e.g. `forks/amsterdam` for execution-specs)."""
     try:
         ref = _run(
             ["symbolic-ref", "refs/remotes/origin/HEAD"], cwd=path
         ).strip()
-        return ref.rsplit("/", 1)[-1]
+        if ref.startswith(_ORIGIN_REF_PREFIX):
+            return ref[len(_ORIGIN_REF_PREFIX):]
+        return ref.rsplit("/", 1)[-1]  # unexpected shape, best-effort
     except GitError:
         for branch in ("master", "main"):
             try:
