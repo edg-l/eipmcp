@@ -75,6 +75,32 @@ def _migrate(conn: sqlite3.Connection) -> None:
     cols = {r[1] for r in conn.execute("PRAGMA table_info(eips)").fetchall()}
     if "description" not in cols:
         conn.execute("ALTER TABLE eips ADD COLUMN description TEXT")
+    _backfill_fts(conn)
+
+
+def _backfill_fts(conn: sqlite3.Connection) -> None:
+    """Populate FTS virtual tables when they exist but are empty alongside data.
+
+    Triggered when a new FTS table is added to the schema after data was
+    already indexed — the CREATE IF NOT EXISTS makes the table but doesn't
+    fill it. Cheap no-op when FTS is already in sync.
+    """
+    eips_n = conn.execute("SELECT COUNT(*) FROM eips").fetchone()[0]
+    if eips_n:
+        fts_n = conn.execute("SELECT COUNT(*) FROM eips_fts").fetchone()[0]
+        if fts_n == 0:
+            conn.execute(
+                "INSERT INTO eips_fts (repo, number, title, description, body) "
+                "SELECT repo, number, title, description, body FROM eips"
+            )
+    specs_n = conn.execute("SELECT COUNT(*) FROM specs").fetchone()[0]
+    if specs_n:
+        fts_n = conn.execute("SELECT COUNT(*) FROM specs_fts").fetchone()[0]
+        if fts_n == 0:
+            conn.execute(
+                "INSERT INTO specs_fts (repo, path, body) "
+                "SELECT repo, path, body FROM specs"
+            )
 
 
 @contextmanager
