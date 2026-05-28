@@ -6,13 +6,16 @@ and `requires` tools.
 
 ## Tracked repos
 
-| key                    | source                                      | indexed as |
-| ---------------------- | ------------------------------------------- | ---------- |
-| `eips`                 | github.com/ethereum/EIPs                    | EIPs (numbered, frontmatter) |
-| `ercs`                 | github.com/ethereum/ERCs                    | EIPs (numbered, frontmatter) |
-| `consensus-specs`      | github.com/ethereum/consensus-specs         | Specs (path-based) |
-| `execution-specs`      | github.com/ethereum/execution-specs         | Specs (path-based) |
-| `execution-spec-tests` | github.com/ethereum/execution-spec-tests    | Specs (path-based, .py + docs) |
+| key                | source                                  | indexed as |
+| ------------------ | --------------------------------------- | ---------- |
+| `eips`             | github.com/ethereum/EIPs                | EIPs (numbered, frontmatter) |
+| `ercs`             | github.com/ethereum/ERCs                | EIPs (numbered, frontmatter) |
+| `consensus-specs`  | github.com/ethereum/consensus-specs     | Specs (path-based) |
+| `execution-specs`  | github.com/ethereum/execution-specs     | Specs + tests (path-based; `src/ethereum`, `docs`, `tests`) |
+
+`tests_for_eip(number)` reads from `execution-specs/tests/` — that's where the
+new EL test framework lives. `ethereum/execution-spec-tests` is on its way to
+retirement and is not tracked.
 
 Data lives at `$XDG_DATA_HOME/eipmcp` (override with `EIPMCP_DATA_DIR`).
 Repos are cloned with `--filter=blob:none` for a smaller working tree.
@@ -73,7 +76,7 @@ Cross-references (EIP↔spec / EIP↔test):
 
 - `eip_referenced_in(number, repo?)` — files mentioning `EIP-<n>` in body or path
 - `refs_in_source(repo, path)` — EIP numbers cited inside one file
-- `tests_for_eip(number)` — execution-spec-tests files referencing this EIP
+- `tests_for_eip(number)` — files under `execution-specs/tests/` referencing this EIP
 
 Hardforks:
 
@@ -85,7 +88,7 @@ Open PRs (uses local `gh` CLI):
 - `pending_prs_for_eip(number, repo='eips', limit=30)`
 - `pending_prs_for_spec(repo, path, limit=30)`
 
-Path-based specs (consensus-specs / execution-specs / execution-spec-tests):
+Path-based specs (consensus-specs / execution-specs):
 
 - `list_specs(repo, glob?)`
 - `get_spec(repo, path)`

@@ -123,9 +123,10 @@ def refs_in_source(repo: str, path: str) -> list[int]:
 
 @mcp.tool()
 def tests_for_eip(number: int) -> list[dict[str, Any]]:
-    """execution-spec-tests files that reference this EIP (path-based or in body)."""
+    """Files under execution-specs/tests/ that reference this EIP (path-based or in body)."""
     with storage.connect() as conn:
-        return storage.refs_for_eip(conn, number, repo="execution-spec-tests")
+        all_refs = storage.refs_for_eip(conn, number, repo="execution-specs")
+    return [r for r in all_refs if r["source_path"].startswith("tests/")]
 
 
 # ---------- Hardfork tools ----------
@@ -203,7 +204,7 @@ def diff_spec(
 def sync_repo(repo: str) -> dict[str, Any]:
     """Pull a repo and reindex.
 
-    repo ∈ {'eips','ercs','consensus-specs','execution-specs','execution-spec-tests'}.
+    repo ∈ {'eips','ercs','consensus-specs','execution-specs'}.
     """
     return sync.sync_repo(repo)
 

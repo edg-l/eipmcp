@@ -40,11 +40,6 @@ REPOS: dict[str, RepoSpec] = {
         url="https://github.com/ethereum/execution-specs.git",
         spec_dirs=("src/ethereum", "docs", "tests"),
     ),
-    "execution-spec-tests": RepoSpec(
-        key="execution-spec-tests",
-        url="https://github.com/ethereum/execution-spec-tests.git",
-        spec_dirs=("tests", "docs"),
-    ),
 }
 
 
@@ -75,7 +70,6 @@ GITHUB_REPO: dict[str, tuple[str, str]] = {
     "ercs": ("ethereum", "ERCs"),
     "consensus-specs": ("ethereum", "consensus-specs"),
     "execution-specs": ("ethereum", "execution-specs"),
-    "execution-spec-tests": ("ethereum", "execution-spec-tests"),
 }
 
 
