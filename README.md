@@ -22,23 +22,31 @@ Repos are cloned with `--filter=blob:none` for a smaller working tree.
 
 ## Install
 
+End-user install (puts `eipmcp` on your PATH via `~/.local/bin`):
+
 ```bash
-cd eipmcp
-uv venv
-uv pip install -e .
+git clone https://github.com/edg-l/eipmcp && cd eipmcp
+uv tool install .
 ```
 
-Or with plain pip: `pip install -e .`
+Upgrade later with `uv tool upgrade eipmcp` (or `uv tool install -e .` from a
+checkout for live edits). Uninstall with `uv tool uninstall eipmcp`.
+
+Dev install (editable, for hacking on the code):
+
+```bash
+uv venv && uv pip install -e '.[dev]'
+```
 
 ## First sync
 
 ```bash
 eipmcp sync eips             # one repo
-eipmcp sync                  # all repos
+eipmcp sync                  # all four repos
 ```
 
-The first clone of all four repos pulls ~150 MB. Subsequent `sync` calls do a
-`git fetch` + reindex of changed files.
+Clones ~150 MB on first run and streams git progress to stderr. Subsequent
+`sync` calls do `git fetch` + reindex only the changed files.
 
 ## Run as MCP server
 
@@ -46,10 +54,16 @@ The first clone of all four repos pulls ~150 MB. Subsequent `sync` calls do a
 eipmcp serve                 # stdio transport
 ```
 
-Register with Claude Code:
+Register with Claude Code (user scope = available in every project):
 
 ```bash
-claude mcp add eipmcp -- eipmcp serve
+claude mcp add --scope user eipmcp -- eipmcp serve
+```
+
+With auto-sync on stale data (daily):
+
+```bash
+claude mcp add --scope user -e EIPMCP_SYNC_TTL=24h eipmcp -- eipmcp serve
 ```
 
 Or paste into `~/.claude.json` / project config:
@@ -57,7 +71,11 @@ Or paste into `~/.claude.json` / project config:
 ```json
 {
   "mcpServers": {
-    "eipmcp": { "command": "eipmcp", "args": ["serve"] }
+    "eipmcp": {
+      "command": "eipmcp",
+      "args": ["serve"],
+      "env": { "EIPMCP_SYNC_TTL": "24h" }
+    }
   }
 }
 ```

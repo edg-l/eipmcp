@@ -13,16 +13,33 @@ from .config import REPOS
 
 def sync_repo(key: str) -> dict[str, Any]:
     spec = repos.get_repo(key)
+    print(f"[eipmcp] === {key} ===", file=sys.stderr, flush=True)
     old, new = repos.pull(spec)
-    eip_stats = eips.reindex_eips(spec) if spec.eip_dirs else None
-    spec_stats = specs.reindex_specs(spec) if spec.spec_dirs else None
+    if spec.eip_dirs:
+        print(f"[eipmcp] indexing EIPs in {key}", file=sys.stderr, flush=True)
+        eip_stats = eips.reindex_eips(spec)
+    else:
+        eip_stats = None
+    if spec.spec_dirs:
+        print(f"[eipmcp] indexing specs in {key}", file=sys.stderr, flush=True)
+        spec_stats = specs.reindex_specs(spec)
+    else:
+        spec_stats = None
     with storage.connect() as conn:
         storage.record_sync(conn, key, new, datetime.now(timezone.utc).isoformat())
+    changed = old != new
+    print(
+        f"[eipmcp] {key}: {old[:7]} → {new[:7]}"
+        f" {'(updated)' if changed else '(no change)'}"
+        f" eips={eip_stats} specs={spec_stats}",
+        file=sys.stderr,
+        flush=True,
+    )
     return {
         "repo": key,
         "old_head": old,
         "new_head": new,
-        "changed": old != new,
+        "changed": changed,
         "eips": eip_stats,
         "specs": spec_stats,
     }

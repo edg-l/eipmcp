@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import subprocess
+import sys
 from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
@@ -14,7 +15,25 @@ class GitError(RuntimeError):
     pass
 
 
-def _run(args: list[str], cwd: Path | None = None, check: bool = True) -> str:
+def _run(
+    args: list[str],
+    cwd: Path | None = None,
+    check: bool = True,
+    stream: bool = False,
+) -> str:
+    """Run a git command. With `stream=True`, pipe stdout+stderr to the parent's
+    stderr so the user sees progress; otherwise capture output."""
+    if stream:
+        proc = subprocess.run(
+            ["git", *args],
+            cwd=cwd,
+            stdout=sys.stderr,
+            stderr=sys.stderr,
+            check=False,
+        )
+        if check and proc.returncode != 0:
+            raise GitError(f"git {' '.join(args)} failed (rc={proc.returncode})")
+        return ""
     proc = subprocess.run(
         ["git", *args],
         cwd=cwd,
@@ -30,24 +49,26 @@ def _run(args: list[str], cwd: Path | None = None, check: bool = True) -> str:
 
 
 def ensure_clone(spec: RepoSpec, shallow_depth: int | None = None) -> Path:
-    """Clone if missing; return repo path."""
+    """Clone if missing; return repo path. Streams git progress to stderr."""
     path = repo_dir(spec.key)
     if (path / ".git").exists():
         return path
     path.parent.mkdir(parents=True, exist_ok=True)
-    args = ["clone", "--filter=blob:none"]
+    print(f"[eipmcp] cloning {spec.url} → {path}", file=sys.stderr, flush=True)
+    args = ["clone", "--progress", "--filter=blob:none"]
     if shallow_depth:
         args += ["--depth", str(shallow_depth)]
     args += [spec.url, str(path)]
-    _run(args)
+    _run(args, stream=True)
     return path
 
 
 def pull(spec: RepoSpec) -> tuple[str, str]:
-    """Fetch + fast-forward. Returns (old_head, new_head)."""
+    """Fetch + fast-forward. Returns (old_head, new_head). Streams progress."""
     path = ensure_clone(spec)
     old = head(path)
-    _run(["fetch", "--prune", "origin"], cwd=path)
+    print(f"[eipmcp] fetching {spec.key}", file=sys.stderr, flush=True)
+    _run(["fetch", "--progress", "--prune", "origin"], cwd=path, stream=True)
     default = default_branch(path)
     _run(["reset", "--hard", f"origin/{default}"], cwd=path)
     new = head(path)
