@@ -28,7 +28,11 @@ def _resolve_since(repo_key: str, since: str | None) -> str | None:
 
 @mcp.tool()
 def get_eip(number: int, repo: str = "eips") -> dict[str, Any]:
-    """Return full EIP/ERC: frontmatter + markdown body. repo: 'eips' or 'ercs'."""
+    """Fetch one EIP/ERC with full body, frontmatter, and parsed `requires` list.
+
+    Use when you need the actual spec text. For summary-only listings call
+    `list_eips`. repo: 'eips' (default) or 'ercs'.
+    """
     with storage.connect() as conn:
         row = storage.get_eip(conn, number, repo=repo)
     if not row:
@@ -43,14 +47,23 @@ def list_eips(
     type: str | None = None,
     category: str | None = None,
 ) -> list[dict[str, Any]]:
-    """List EIPs with optional filters. Returns number/title/description/status/type/category."""
+    """List EIP summaries (number, title, description, status, type, category).
+
+    Cheap discovery call — filter by repo / status / type / category to scope.
+    Use before `get_eip` when you don't already know the number.
+    """
     with storage.connect() as conn:
         return storage.list_eips(conn, repo=repo, status=status, type_=type, category=category)
 
 
 @mcp.tool()
 def search_eips(query: str, limit: int = 50, snippet_words: int = 12) -> list[dict[str, Any]]:
-    """SQLite FTS5 search over EIP title/description/body. Ranked by bm25, returns snippets."""
+    """Ranked full-text search across EIP title, description, and body.
+
+    Returns relevance-ranked matches with highlighted snippets. Use when you
+    don't know the EIP number — e.g. 'EIPs about blob mempool', 'withdrawals
+    queue'. Multi-word queries match all tokens.
+    """
     with storage.connect() as conn:
         return storage.search_eips(conn, query, limit=limit, snippet_words=snippet_words)
 
@@ -63,10 +76,14 @@ def diff_eip(
     repo: str = "eips",
     context: int = 3,
 ) -> dict[str, Any]:
-    """Unified git diff for an EIP between two revs.
+    """Unified git diff for one EIP between two revisions.
 
-    since: 'previous_sync' (default), 'last_sync', or a commit SHA.
-    until: commit SHA, or None for current HEAD.
+    Use to see how an EIP shifted since the last sync, or between any two refs.
+
+    since: 'previous_sync' (default — the sync before the latest),
+           'last_sync' (latest sync vs current HEAD),
+           or any git rev (SHA, tag, branch).
+    until: any git rev; defaults to current HEAD.
     """
     spec = repos.get_repo(repo)
     repo_path = repos.ensure_clone(spec)
@@ -89,7 +106,10 @@ def diff_eip(
 
 @mcp.tool()
 def eip_requires(number: int, repo: str = "eips") -> list[int]:
-    """EIP numbers this EIP requires (from frontmatter)."""
+    """EIPs this EIP explicitly depends on (from its `requires:` frontmatter).
+
+    Use when planning what to read before tackling a new EIP.
+    """
     with storage.connect() as conn:
         row = storage.get_eip(conn, number, repo=repo)
     return list(row["requires"]) if row else []
@@ -97,7 +117,10 @@ def eip_requires(number: int, repo: str = "eips") -> list[int]:
 
 @mcp.tool()
 def eip_required_by(number: int, repo: str = "eips") -> list[dict[str, Any]]:
-    """EIPs whose `requires` list includes this EIP."""
+    """Reverse of `eip_requires`: every EIP that lists this one in `requires:`.
+
+    Use for impact analysis ('what depends on EIP-N?').
+    """
     with storage.connect() as conn:
         return storage.required_by(conn, number, repo=repo)
 
@@ -106,9 +129,11 @@ def eip_required_by(number: int, repo: str = "eips") -> list[dict[str, Any]]:
 
 @mcp.tool()
 def eip_referenced_in(number: int, repo: str | None = None) -> list[dict[str, Any]]:
-    """Spec/test/EIP files that mention `EIP-<number>` in body or path.
+    """Files (specs, tests, other EIPs) that mention `EIP-<number>` in body or path.
 
-    Optionally filter by source repo (e.g. 'consensus-specs', 'execution-specs').
+    Catches prose references the formal `requires:` graph misses — useful for
+    tracing where an EIP is actually implemented, specified, or tested.
+    Filter by source repo (e.g. 'consensus-specs', 'execution-specs', 'eips').
     """
     with storage.connect() as conn:
         return storage.refs_for_eip(conn, number, repo=repo)
@@ -116,14 +141,23 @@ def eip_referenced_in(number: int, repo: str | None = None) -> list[dict[str, An
 
 @mcp.tool()
 def refs_in_source(repo: str, path: str) -> list[int]:
-    """EIP numbers referenced inside a given indexed file."""
+    """The EIPs mentioned inside one file (reverse of `eip_referenced_in`).
+
+    Pass the same (repo, path) you'd give `get_spec`. Use to summarise what an
+    unfamiliar spec or test file relates to.
+    """
     with storage.connect() as conn:
         return storage.refs_in_source(conn, repo, path)
 
 
 @mcp.tool()
 def tests_for_eip(number: int) -> list[dict[str, Any]]:
-    """Files under execution-specs/tests/ that reference this EIP (path-based or in body)."""
+    """Test files under execution-specs/tests/ that exercise or reference an EIP.
+
+    Matches both `tests/<fork>/eip<n>_*/` directories and in-body mentions —
+    catches cross-fork interactions (e.g. EIP-7702 referenced by Amsterdam's
+    block-access-list tests). Use to find conformance tests when implementing.
+    """
     with storage.connect() as conn:
         all_refs = storage.refs_for_eip(conn, number, repo="execution-specs")
     return [r for r in all_refs if r["source_path"].startswith("tests/")]
@@ -133,13 +167,18 @@ def tests_for_eip(number: int) -> list[dict[str, Any]]:
 
 @mcp.tool()
 def get_hardfork(name: str) -> dict[str, Any]:
-    """Resolve a fork codename (pectra, fusaka, cancun, ...) to its Meta EIP(s) and included EIPs."""
+    """Resolve a fork codename to its Meta EIP(s) and the EIPs it bundles.
+
+    Accepts aliases: pectra↔prague↔electra, fusaka↔fulu↔osaka,
+    glamsterdam↔amsterdam, cancun↔deneb, shanghai↔capella, merge↔paris↔bellatrix.
+    Use to answer 'what's in fork X?' in one call.
+    """
     return hardforks.lookup(name)
 
 
 @mcp.tool()
 def list_hardforks() -> list[dict[str, Any]]:
-    """All indexed Meta EIPs (candidates for hardfork lookups)."""
+    """All indexed Meta EIPs — the universe of forks `get_hardfork` can resolve."""
     return hardforks.list_all()
 
 
@@ -147,13 +186,20 @@ def list_hardforks() -> list[dict[str, Any]]:
 
 @mcp.tool()
 def pending_prs_for_eip(number: int, repo: str = "eips", limit: int = 30) -> list[dict[str, Any]]:
-    """Open GitHub PRs in `repo` that mention EIP-<number>. Uses local `gh` CLI."""
+    """Open pull requests against `repo` that mention EIP-<number>.
+
+    Live GitHub query (not from the local index). Use to spot in-flight changes
+    before relying on the indexed version of an EIP.
+    """
     return github_api.open_prs_for_eip(number, repo_key=repo, limit=limit)
 
 
 @mcp.tool()
 def pending_prs_for_spec(repo: str, path: str, limit: int = 30) -> list[dict[str, Any]]:
-    """Open GitHub PRs in `repo` matching the basename of `path` (approximate)."""
+    """Open pull requests against `repo` matching the basename of `path`.
+
+    Approximate file-touched filter (GitHub search has no exact one). Live query.
+    """
     return github_api.open_prs_for_path(repo, path, limit=limit)
 
 
@@ -161,14 +207,18 @@ def pending_prs_for_spec(repo: str, path: str, limit: int = 30) -> list[dict[str
 
 @mcp.tool()
 def list_specs(repo: str, glob: str | None = None) -> list[dict[str, Any]]:
-    """List indexed spec files. `glob` uses SQL LIKE semantics (`*` → `%`)."""
+    """List spec file paths in `repo`. `glob` accepts `*` as a wildcard.
+
+    Examples: `*prague*`, `specs/electra/*`, `*beacon-chain.md`.
+    Use for discovery before `get_spec`.
+    """
     with storage.connect() as conn:
         return storage.list_specs(conn, repo, glob=glob)
 
 
 @mcp.tool()
 def get_spec(repo: str, path: str) -> dict[str, Any]:
-    """Return the full contents of an indexed spec file."""
+    """Fetch one spec file's full contents. Pair with `list_specs` to discover paths."""
     with storage.connect() as conn:
         row = storage.get_spec(conn, repo, path)
     if not row:
@@ -184,7 +234,11 @@ def diff_spec(
     until: str | None = None,
     context: int = 3,
 ) -> dict[str, Any]:
-    """Unified git diff for a spec path between two revs."""
+    """Unified git diff for one spec path between two revisions.
+
+    Same `since` / `until` semantics as `diff_eip`. Use to track what changed in
+    a spec file between syncs or releases.
+    """
     spec = repos.get_repo(repo)
     repo_path = repos.ensure_clone(spec)
     old = _resolve_since(repo, since)
@@ -202,22 +256,29 @@ def diff_spec(
 
 @mcp.tool()
 def sync_repo(repo: str) -> dict[str, Any]:
-    """Pull a repo and reindex.
+    """Pull a repo's latest commits and reindex it.
 
-    repo ∈ {'eips','ercs','consensus-specs','execution-specs'}.
+    Call when you need fresh data immediately rather than waiting for the next
+    auto-sync. repo ∈ {'eips','ercs','consensus-specs','execution-specs'}.
     """
     return sync.sync_repo(repo)
 
 
 @mcp.tool()
 def sync_all() -> list[dict[str, Any]]:
-    """Pull and reindex every tracked repo."""
+    """Pull and reindex every tracked repo.
+
+    Slow on first run (clones ~150 MB); fast afterwards (fetch + delta reindex).
+    """
     return sync.sync_all()
 
 
 @mcp.tool()
 def list_repos() -> list[dict[str, Any]]:
-    """Show tracked repos and their last-known sync commit."""
+    """List tracked repos with their last sync commit + timestamp.
+
+    Use to check how fresh the indexed data is.
+    """
     out: list[dict[str, Any]] = []
     with storage.connect() as conn:
         for key, spec in REPOS.items():
@@ -260,13 +321,14 @@ def _format_eip_resource(number: int, repo: str) -> str:
 
 @mcp.resource("eip://{number}")
 def eip_resource(number: str) -> str:
-    """Full EIP document. URI: `eip://1559`."""
+    """Full EIP document: formatted header (status, type, requires, description) + body.
+    URI form: `eip://1559`."""
     return _format_eip_resource(int(number), repo="eips")
 
 
 @mcp.resource("erc://{number}")
 def erc_resource(number: str) -> str:
-    """Full ERC document. URI: `erc://20`."""
+    """Full ERC document with formatted header + body. URI form: `erc://20`."""
     return _format_eip_resource(int(number), repo="ercs")
 
 
