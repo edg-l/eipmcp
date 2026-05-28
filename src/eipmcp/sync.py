@@ -46,7 +46,20 @@ def sync_repo(key: str) -> dict[str, Any]:
 
 
 def sync_all() -> list[dict[str, Any]]:
-    return [sync_repo(k) for k in REPOS]
+    """Sync every tracked repo. Per-repo failures are caught so one error
+    doesn't block the rest; the failing repo gets {error, type} in its slot."""
+    results: list[dict[str, Any]] = []
+    for k in REPOS:
+        try:
+            results.append(sync_repo(k))
+        except Exception as e:
+            print(f"[eipmcp] sync of {k} failed: {e}", file=sys.stderr, flush=True)
+            results.append({
+                "repo": k,
+                "error": str(e),
+                "type": type(e).__name__,
+            })
+    return results
 
 
 # ---------- TTL-based auto-sync ----------

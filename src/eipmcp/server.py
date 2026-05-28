@@ -6,7 +6,7 @@ from typing import Any
 
 from mcp.server.fastmcp import FastMCP
 
-from . import github_api, hardforks, repos, storage, sync
+from . import github_api, hardforks, recent, repos, storage, sync
 from .config import REPOS
 
 mcp = FastMCP("eipmcp")
@@ -227,6 +227,25 @@ def get_spec(repo: str, path: str) -> dict[str, Any]:
 
 
 @mcp.tool()
+def search_specs(
+    query: str,
+    repo: str | None = None,
+    limit: int = 50,
+    snippet_words: int = 12,
+) -> list[dict[str, Any]]:
+    """Ranked full-text search across spec file bodies.
+
+    Use for concept-level questions in consensus-specs / execution-specs that
+    aren't tied to an EIP number — e.g. 'where is RANDAO mixed?', 'how is the
+    blob commitment computed?'. Filter by repo to narrow CL vs EL.
+    """
+    with storage.connect() as conn:
+        return storage.search_specs_fts(
+            conn, query, repo=repo, limit=limit, snippet_words=snippet_words
+        )
+
+
+@mcp.tool()
 def diff_spec(
     repo: str,
     path: str,
@@ -271,6 +290,18 @@ def sync_all() -> list[dict[str, Any]]:
     Slow on first run (clones ~150 MB); fast afterwards (fetch + delta reindex).
     """
     return sync.sync_all()
+
+
+@mcp.tool()
+def recent_changes(days: int = 7, repo: str | None = None) -> list[dict[str, Any]]:
+    """Files changed in each tracked repo over the past `days` days.
+
+    Anchored to the last sync recorded before the cutoff (so it shows what's
+    *new since you last cared*, not just what's in the git log). EIP entries
+    include current title/status plus `status_was` when status flipped.
+    Use for 'what shifted this week?' briefings.
+    """
+    return recent.recent_changes(days=days, repo=repo)
 
 
 @mcp.tool()
@@ -330,6 +361,23 @@ def eip_resource(number: str) -> str:
 def erc_resource(number: str) -> str:
     """Full ERC document with formatted header + body. URI form: `erc://20`."""
     return _format_eip_resource(int(number), repo="ercs")
+
+
+@mcp.resource("spec://{repo}/{path}")
+def spec_resource(repo: str, path: str) -> str:
+    """One spec file's full contents.
+
+    URI form: `spec://consensus-specs/specs/electra/beacon-chain.md`. If your
+    MCP client splits on `/`, percent-encode the path component instead:
+    `spec://consensus-specs/specs%2Felectra%2Fbeacon-chain.md`.
+    """
+    from urllib.parse import unquote
+    decoded = unquote(path)
+    with storage.connect() as conn:
+        row = storage.get_spec(conn, repo, decoded)
+    if not row:
+        return f"# Not found\n\nSpec '{decoded}' not indexed in repo '{repo}'."
+    return f"# {repo}: {decoded}\n\n{row['body']}"
 
 
 # ---------- Entry point ----------

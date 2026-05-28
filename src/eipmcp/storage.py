@@ -47,6 +47,11 @@ CREATE TABLE IF NOT EXISTS specs (
     PRIMARY KEY (repo, path)
 );
 
+CREATE VIRTUAL TABLE IF NOT EXISTS specs_fts USING fts5(
+    repo, path UNINDEXED, body,
+    tokenize = 'porter unicode61'
+);
+
 CREATE TABLE IF NOT EXISTS eip_refs (
     eip_number   INTEGER NOT NULL,
     source_repo  TEXT NOT NULL,
@@ -221,6 +226,47 @@ def upsert_spec(conn: sqlite3.Connection, repo: str, path: str, body: str, sha: 
         """,
         (repo, path, body, sha),
     )
+    conn.execute("DELETE FROM specs_fts WHERE repo=? AND path=?", (repo, path))
+    conn.execute(
+        "INSERT INTO specs_fts (repo, path, body) VALUES (?, ?, ?)",
+        (repo, path, body),
+    )
+
+
+def search_specs_fts(
+    conn: sqlite3.Connection,
+    query: str,
+    repo: str | None = None,
+    limit: int = 50,
+    snippet_words: int = 12,
+) -> list[dict[str, Any]]:
+    """FTS5 search over spec file bodies (consensus-specs, execution-specs).
+    Token-AND, bm25-ranked, returns snippet excerpts."""
+    fts_q = _fts_query(query)
+    sql = """
+        SELECT repo, path,
+               snippet(specs_fts, 2, '«', '»', '…', ?) AS snippet,
+               bm25(specs_fts) AS rank
+        FROM specs_fts
+        WHERE specs_fts MATCH ?
+    """
+    args: list[Any] = [snippet_words, fts_q]
+    if repo:
+        sql += " AND repo=?"; args.append(repo)
+    sql += " ORDER BY rank LIMIT ?"
+    args.append(limit)
+    try:
+        rows = conn.execute(sql, args).fetchall()
+        return [dict(r) for r in rows]
+    except sqlite3.OperationalError:
+        pat = f"%{query}%"
+        sql2 = "SELECT repo, path FROM specs WHERE body LIKE ?"
+        args2: list[Any] = [pat]
+        if repo:
+            sql2 += " AND repo=?"; args2.append(repo)
+        sql2 += " LIMIT ?"; args2.append(limit)
+        rows = conn.execute(sql2, args2).fetchall()
+        return [dict(r) | {"snippet": None, "rank": 0} for r in rows]
 
 
 def get_spec(conn: sqlite3.Connection, repo: str, path: str) -> dict[str, Any] | None:
@@ -319,10 +365,26 @@ def delete_missing_specs(conn: sqlite3.Connection, repo: str, present: Iterable[
             [(repo, p) for p in to_delete],
         )
         conn.executemany(
+            "DELETE FROM specs_fts WHERE repo=? AND path=?",
+            [(repo, p) for p in to_delete],
+        )
+        conn.executemany(
             "DELETE FROM eip_refs WHERE source_repo=? AND source_path=?",
             [(repo, p) for p in to_delete],
         )
     return len(to_delete)
+
+
+def sync_log_before(
+    conn: sqlite3.Connection, repo: str, iso_cutoff: str
+) -> dict[str, Any] | None:
+    """Most recent sync recorded strictly before `iso_cutoff` (ISO-8601)."""
+    row = conn.execute(
+        "SELECT commit_sha, synced_at FROM sync_log "
+        "WHERE repo=? AND synced_at < ? ORDER BY synced_at DESC LIMIT 1",
+        (repo, iso_cutoff),
+    ).fetchone()
+    return dict(row) if row else None
 
 
 # ---------- Sync log ----------

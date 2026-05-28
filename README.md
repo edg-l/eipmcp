@@ -107,16 +107,31 @@ Path-based specs (consensus-specs / execution-specs):
 
 - `list_specs(repo, glob?)`
 - `get_spec(repo, path)`
+- `search_specs(query, repo?, limit=50)` — FTS5 over spec bodies; bm25-ranked + snippets
 - `diff_spec(repo, path, since='previous_sync', until?)`
+
+Recency:
+
+- `recent_changes(days=7, repo?)` — files changed since the sync before that cutoff, with EIP status transitions
 
 Repo management:
 
-- `sync_repo(repo)` / `sync_all()` / `list_repos()`
+- `sync_repo(repo)` / `sync_all()` / `list_repos()` — `sync_all` is per-repo
+  resilient (one failure doesn't block the rest; failing repo gets `{error, type}`)
 
 ## Resources
 
 - `eip://{number}` — formatted EIP doc (URI scheme for MCP clients/IDEs)
 - `erc://{number}` — formatted ERC doc
+- `spec://{repo}/{path}` — one spec file's body (percent-encode `/` in the
+  path if your client splits on it)
+
+## Dependencies
+
+`pending_prs_for_eip` and `pending_prs_for_spec` shell out to the `gh` CLI to
+query GitHub's search API. Install [`gh`](https://cli.github.com/) and
+authenticate (`gh auth login`) to use those tools. Everything else works
+without `gh`.
 
 ## Useful calls
 
@@ -171,6 +186,25 @@ search_eips("blob transactions", limit=5)
 FTS5 bm25 ranking + snippets across title, description, and body. Beats
 keyword-grep through 1500+ markdown files; tokens are AND-joined and safe
 against special FTS operators.
+
+### "Where is RANDAO mixed in?" (specs, not EIPs)
+
+```
+search_specs("RANDAO mix", repo="consensus-specs")
+```
+
+Same FTS5 machinery, but over consensus-specs / execution-specs file bodies.
+Use for concept-level questions that aren't tied to an EIP number.
+
+### "What shifted in EIPs this week?"
+
+```
+recent_changes(days=7, repo="eips")
+```
+
+Anchored to the last sync before the cutoff — i.e. "what's new since you last
+cared", not just what's in the git log. EIP entries include `status_was` /
+`status_now` when an EIP's status flipped (Draft → Final, etc.).
 
 ### "What's pending against EIP-7702 right now?"
 

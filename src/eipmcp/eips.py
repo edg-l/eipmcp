@@ -66,14 +66,22 @@ def parse_eip_file(text: str, rel_path: str, repo_key: str) -> dict[str, Any] | 
     }
 
 
-def reindex_eips(spec: RepoSpec) -> dict[str, int]:
+def reindex_eips(spec: RepoSpec) -> dict[str, Any]:
+    """Reindex EIPs. Returns counts plus the actually-interesting deltas:
+    status transitions, newly added EIPs, and body-churn entries."""
     if not spec.eip_dirs:
-        return {"upserted": 0, "deleted": 0, "skipped": 0}
+        return {
+            "upserted": 0, "deleted": 0, "skipped": 0,
+            "status_changes": [], "added": [], "churned": [],
+        }
     path = repos.ensure_clone(spec)
     files = repos.walk_dirs(path, spec.eip_dirs, suffixes=(".md",))
     upserted = 0
     skipped = 0
     present_numbers: list[int] = []
+    status_changes: list[dict[str, Any]] = []
+    added: list[dict[str, Any]] = []
+    churned: list[dict[str, Any]] = []
     with storage.connect() as conn:
         for wf in files:
             text = wf.abs_path.read_text(encoding="utf-8", errors="replace")
@@ -81,6 +89,25 @@ def reindex_eips(spec: RepoSpec) -> dict[str, int]:
             if row is None:
                 skipped += 1
                 continue
+            old = storage.get_eip(conn, row["number"], repo=spec.key)
+            if old is None:
+                added.append({"number": row["number"], "title": row["title"]})
+            else:
+                if (old.get("status") or None) != (row.get("status") or None):
+                    status_changes.append({
+                        "number": row["number"],
+                        "title": row["title"],
+                        "from": old.get("status"),
+                        "to": row.get("status"),
+                    })
+                if old.get("content_sha") != row["content_sha"]:
+                    old_lines = len((old.get("body") or "").splitlines())
+                    new_lines = len(row["body"].splitlines())
+                    churned.append({
+                        "number": row["number"],
+                        "title": row["title"],
+                        "lines_delta": new_lines - old_lines,
+                    })
             storage.upsert_eip(conn, row)
             refs = crossrefs.extract_refs(
                 row["body"], path=wf.rel_path, exclude=row["number"]
@@ -89,4 +116,9 @@ def reindex_eips(spec: RepoSpec) -> dict[str, int]:
             present_numbers.append(row["number"])
             upserted += 1
         deleted = storage.delete_missing_eips(conn, spec.key, present_numbers)
-    return {"upserted": upserted, "deleted": deleted, "skipped": skipped}
+    return {
+        "upserted": upserted, "deleted": deleted, "skipped": skipped,
+        "status_changes": status_changes,
+        "added": added,
+        "churned": churned,
+    }
