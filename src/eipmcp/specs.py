@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import hashlib
 
-from . import repos, storage
+from . import crossrefs, repos, storage
 from .config import RepoSpec
 
 
@@ -23,6 +23,8 @@ def reindex_specs(spec: RepoSpec) -> dict[str, int]:
             text = wf.abs_path.read_text(encoding="utf-8", errors="replace")
             sha = hashlib.sha256(text.encode("utf-8")).hexdigest()
             storage.upsert_spec(conn, spec.key, wf.rel_path, text, sha)
+            refs = crossrefs.extract_refs(text, path=wf.rel_path)
+            storage.replace_refs(conn, spec.key, wf.rel_path, refs)
             present_paths.append(wf.rel_path)
             upserted += 1
         deleted = storage.delete_missing_specs(conn, spec.key, present_paths)

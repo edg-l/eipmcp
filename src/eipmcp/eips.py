@@ -8,7 +8,7 @@ from typing import Any
 
 import frontmatter
 
-from . import repos, storage
+from . import crossrefs, repos, storage
 from .config import RepoSpec
 
 _EIP_FILENAME = re.compile(r"^(?:eip|erc)-(\d+)\.md$", re.IGNORECASE)
@@ -52,6 +52,7 @@ def parse_eip_file(text: str, rel_path: str, repo_key: str) -> dict[str, Any] | 
         "repo": repo_key,
         "number": number,
         "title": str(meta.get("title") or "").strip() or None,
+        "description": str(meta.get("description") or "").strip() or None,
         "status": str(meta.get("status") or "").strip() or None,
         "type": str(meta.get("type") or "").strip() or None,
         "category": str(meta.get("category") or "").strip() or None,
@@ -66,7 +67,6 @@ def parse_eip_file(text: str, rel_path: str, repo_key: str) -> dict[str, Any] | 
 
 
 def reindex_eips(spec: RepoSpec) -> dict[str, int]:
-    """Scan repo on disk, upsert all EIP-format docs, drop ones that vanished."""
     if not spec.eip_dirs:
         return {"upserted": 0, "deleted": 0, "skipped": 0}
     path = repos.ensure_clone(spec)
@@ -82,6 +82,10 @@ def reindex_eips(spec: RepoSpec) -> dict[str, int]:
                 skipped += 1
                 continue
             storage.upsert_eip(conn, row)
+            refs = crossrefs.extract_refs(
+                row["body"], path=wf.rel_path, exclude=row["number"]
+            )
+            storage.replace_refs(conn, spec.key, wf.rel_path, refs)
             present_numbers.append(row["number"])
             upserted += 1
         deleted = storage.delete_missing_eips(conn, spec.key, present_numbers)

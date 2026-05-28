@@ -1,4 +1,4 @@
-"""Paths and tracked-repo configuration."""
+"""Paths, tracked-repo configuration, and hardfork aliases."""
 
 from __future__ import annotations
 
@@ -40,11 +40,46 @@ REPOS: dict[str, RepoSpec] = {
         url="https://github.com/ethereum/execution-specs.git",
         spec_dirs=("src/ethereum", "docs", "tests"),
     ),
+    "execution-spec-tests": RepoSpec(
+        key="execution-spec-tests",
+        url="https://github.com/ethereum/execution-spec-tests.git",
+        spec_dirs=("tests", "docs"),
+    ),
+}
+
+
+# Codename aliases for `get_hardfork`. Lowercase keys. Lookup falls back to
+# the literal name when not aliased (so "berlin" still works without an entry).
+HARDFORK_ALIASES: dict[str, list[str]] = {
+    "pectra": ["pectra", "prague", "electra"],
+    "prague": ["prague", "pectra"],
+    "electra": ["electra", "pectra"],
+    "fusaka": ["fusaka", "fulu", "osaka"],
+    "fulu": ["fulu", "fusaka"],
+    "osaka": ["osaka", "fusaka"],
+    "glamsterdam": ["glamsterdam", "amsterdam", "gloas"],
+    "amsterdam": ["amsterdam", "glamsterdam"],
+    "cancun": ["cancun", "deneb"],
+    "deneb": ["deneb", "cancun"],
+    "shanghai": ["shanghai", "capella"],
+    "capella": ["capella", "shanghai"],
+    "merge": ["merge", "paris", "bellatrix"],
+    "paris": ["paris", "merge"],
+    "bellatrix": ["bellatrix", "merge"],
+}
+
+
+# Map repo keys to (owner, name) for GitHub API lookups.
+GITHUB_REPO: dict[str, tuple[str, str]] = {
+    "eips": ("ethereum", "EIPs"),
+    "ercs": ("ethereum", "ERCs"),
+    "consensus-specs": ("ethereum", "consensus-specs"),
+    "execution-specs": ("ethereum", "execution-specs"),
+    "execution-spec-tests": ("ethereum", "execution-spec-tests"),
 }
 
 
 def data_dir() -> Path:
-    """Where the MCP stores cloned repos and the SQLite db."""
     override = os.environ.get("EIPMCP_DATA_DIR")
     root = Path(override) if override else Path(user_data_dir("eipmcp", "ethereum"))
     root.mkdir(parents=True, exist_ok=True)
