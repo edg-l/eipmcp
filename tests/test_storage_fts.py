@@ -77,7 +77,8 @@ def test_migration_adds_description(tmp_path):
         );
         """
     )
-    conn.commit(); conn.close()
+    conn.commit()
+    conn.close()
 
     with storage.connect(db) as conn:
         cols = {r[1] for r in conn.execute("PRAGMA table_info(eips)").fetchall()}

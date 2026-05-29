@@ -1,7 +1,7 @@
 """Compute 'what changed in the last N days' across tracked repos."""
 
 import re
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from . import eips, repos, storage
@@ -67,6 +67,6 @@ def recent_changes(days: int = 7, repo: str | None = None) -> list[dict[str, Any
     """Files changed in each tracked repo since `days` ago, anchored to the
     last sync recorded before that point. EIP rows get enriched with current
     status and (when changed) the previous status."""
-    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+    cutoff = datetime.now(UTC) - timedelta(days=days)
     keys = [repo] if repo else list(REPOS)
     return [_recent_for_repo(k, cutoff) for k in keys]

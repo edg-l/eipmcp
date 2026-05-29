@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from eipmcp import storage, sync
 
@@ -29,7 +29,7 @@ def test_stale_repos_include_uninitialized_flag(tmp_path, monkeypatch):
 
 def test_stale_repos_respects_fresh_sync(tmp_path, monkeypatch):
     monkeypatch.setenv("EIPMCP_DATA_DIR", str(tmp_path))
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     with storage.connect() as conn:
         storage.record_sync(conn, "eips", "abc", now.isoformat())
     stale = sync.stale_repos(60)
@@ -43,7 +43,7 @@ def test_stale_repos_zero_ttl_disabled(tmp_path, monkeypatch):
 
 def test_stale_repos_old_sync_is_stale(tmp_path, monkeypatch):
     monkeypatch.setenv("EIPMCP_DATA_DIR", str(tmp_path))
-    long_ago = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
+    long_ago = (datetime.now(UTC) - timedelta(days=30)).isoformat()
     with storage.connect() as conn:
         storage.record_sync(conn, "eips", "old", long_ago)
     stale = sync.stale_repos(60)

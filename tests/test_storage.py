@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from eipmcp import storage
 
@@ -28,8 +28,8 @@ def test_eip_roundtrip(tmp_path, monkeypatch):
 def test_sync_log(tmp_path):
     db = tmp_path / "s.db"
     with storage.connect(db) as conn:
-        storage.record_sync(conn, "eips", "aaa", datetime.now(timezone.utc).isoformat())
-        storage.record_sync(conn, "eips", "bbb", datetime.now(timezone.utc).isoformat())
+        storage.record_sync(conn, "eips", "aaa", datetime.now(UTC).isoformat())
+        storage.record_sync(conn, "eips", "bbb", datetime.now(UTC).isoformat())
         last = storage.last_sync(conn, "eips")
         prev = storage.previous_sync(conn, "eips")
         assert last["commit_sha"] == "bbb"

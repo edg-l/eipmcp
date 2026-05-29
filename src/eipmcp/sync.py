@@ -2,7 +2,7 @@
 
 import os
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from . import eips, repos, specs, storage
@@ -24,7 +24,7 @@ def sync_repo(key: str) -> dict[str, Any]:
     else:
         spec_stats = None
     with storage.connect() as conn:
-        storage.record_sync(conn, key, new, datetime.now(timezone.utc).isoformat())
+        storage.record_sync(conn, key, new, datetime.now(UTC).isoformat())
     changed = old != new
     print(
         f"[eipmcp] {key}: {old[:7]} → {new[:7]}"
@@ -90,7 +90,7 @@ def stale_repos(ttl_seconds: int, include_uninitialized: bool = False) -> list[s
     """
     if ttl_seconds <= 0:
         return []
-    cutoff = datetime.now(timezone.utc) - timedelta(seconds=ttl_seconds)
+    cutoff = datetime.now(UTC) - timedelta(seconds=ttl_seconds)
     stale: list[str] = []
     with storage.connect() as conn:
         for key in REPOS:

@@ -29,7 +29,8 @@ def test_specs_fts_backfill_on_connect(tmp_path):
         ("consensus-specs", "specs/electra/beacon-chain.md",
          "RANDAO is mixed into the state.", "sha1"),
     )
-    conn.commit(); conn.close()
+    conn.commit()
+    conn.close()
 
     # First connect through storage.connect should create specs_fts and backfill.
     with storage.connect(db) as conn:
@@ -60,7 +61,8 @@ def test_eips_fts_backfill_on_connect(tmp_path):
         ("eips", 4844, "Shard Blob Transactions", "Blob desc",
          "Introduce blob-carrying transactions.", "x" * 64, "EIPS/eip-4844.md"),
     )
-    conn.commit(); conn.close()
+    conn.commit()
+    conn.close()
 
     with storage.connect(db) as conn:
         hits = storage.search_eips(conn, "blob")
