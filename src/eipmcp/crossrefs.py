@@ -1,7 +1,5 @@
 """Extract `EIP-NNNN` style references from arbitrary text and paths."""
 
-from __future__ import annotations
-
 import re
 
 # `(?!\d)` instead of `\b` at the tail: `\b` doesn't fire between a digit and

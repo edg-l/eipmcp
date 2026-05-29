@@ -1,7 +1,5 @@
 """Hardfork lookup: resolve fork codenames to Meta EIPs and their included EIPs."""
 
-from __future__ import annotations
-
 from typing import Any
 
 from . import crossrefs, storage

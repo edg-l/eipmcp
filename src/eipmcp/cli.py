@@ -1,7 +1,5 @@
 """CLI entry: `eipmcp serve` (MCP stdio) and `eipmcp sync [repo]`."""
 
-from __future__ import annotations
-
 import argparse
 import json
 import sys

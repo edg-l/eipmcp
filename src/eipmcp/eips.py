@@ -1,7 +1,5 @@
 """Parse EIP-style markdown (YAML frontmatter) and index into SQLite."""
 
-from __future__ import annotations
-
 import hashlib
 import re
 from typing import Any

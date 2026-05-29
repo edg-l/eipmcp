@@ -1,7 +1,5 @@
 """Git repo management: clone, pull, diff, content-at-commit."""
 
-from __future__ import annotations
-
 import subprocess
 import sys
 from collections.abc import Iterable

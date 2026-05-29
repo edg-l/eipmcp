@@ -1,7 +1,5 @@
 """GitHub queries (open PRs, etc.) via the local `gh` CLI for auth."""
 
-from __future__ import annotations
-
 import json
 import subprocess
 from typing import Any

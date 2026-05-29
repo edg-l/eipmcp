@@ -1,7 +1,5 @@
 """MCP server exposing EIP/spec tools and resources."""
 
-from __future__ import annotations
-
 from typing import Any
 
 from mcp.server.fastmcp import FastMCP

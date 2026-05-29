@@ -1,7 +1,5 @@
 """Compute 'what changed in the last N days' across tracked repos."""
 
-from __future__ import annotations
-
 import re
 from datetime import datetime, timedelta, timezone
 from typing import Any

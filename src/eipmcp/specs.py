@@ -1,8 +1,7 @@
 """Index spec-style (path-based, non-EIP-frontmatter) docs."""
 
-from __future__ import annotations
-
 import hashlib
+from typing import Any
 
 from . import crossrefs, repos, storage
 from .config import RepoSpec

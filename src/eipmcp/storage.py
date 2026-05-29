@@ -1,7 +1,5 @@
 """SQLite schema and helpers for EIP/spec indexing."""
 
-from __future__ import annotations
-
 import json
 import sqlite3
 from collections.abc import Iterable, Iterator
@@ -171,13 +169,17 @@ def list_eips(
     )
     args: list[Any] = []
     if repo:
-        sql += " AND repo=?"; args.append(repo)
+        sql += " AND repo=?"
+        args.append(repo)
     if status:
-        sql += " AND status=?"; args.append(status)
+        sql += " AND status=?"
+        args.append(status)
     if type_:
-        sql += " AND type=?"; args.append(type_)
+        sql += " AND type=?"
+        args.append(type_)
     if category:
-        sql += " AND category=?"; args.append(category)
+        sql += " AND category=?"
+        args.append(category)
     sql += " ORDER BY number"
     return [dict(r) for r in conn.execute(sql, args).fetchall()]
 
@@ -278,7 +280,8 @@ def search_specs_fts(
     """
     args: list[Any] = [snippet_words, fts_q]
     if repo:
-        sql += " AND repo=?"; args.append(repo)
+        sql += " AND repo=?"
+        args.append(repo)
     sql += " ORDER BY rank LIMIT ?"
     args.append(limit)
     try:
@@ -289,8 +292,10 @@ def search_specs_fts(
         sql2 = "SELECT repo, path FROM specs WHERE body LIKE ?"
         args2: list[Any] = [pat]
         if repo:
-            sql2 += " AND repo=?"; args2.append(repo)
-        sql2 += " LIMIT ?"; args2.append(limit)
+            sql2 += " AND repo=?"
+            args2.append(repo)
+        sql2 += " LIMIT ?"
+        args2.append(limit)
         rows = conn.execute(sql2, args2).fetchall()
         return [dict(r) | {"snippet": None, "rank": 0} for r in rows]
 
@@ -340,7 +345,8 @@ def refs_for_eip(
     sql = "SELECT source_repo, source_path FROM eip_refs WHERE eip_number=?"
     args: list[Any] = [number]
     if repo:
-        sql += " AND source_repo=?"; args.append(repo)
+        sql += " AND source_repo=?"
+        args.append(repo)
     sql += " ORDER BY source_repo, source_path"
     return [dict(r) for r in conn.execute(sql, args).fetchall()]
 

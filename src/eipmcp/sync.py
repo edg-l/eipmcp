@@ -1,7 +1,5 @@
 """High-level: pull + reindex, with optional TTL-based auto-sync."""
 
-from __future__ import annotations
-
 import os
 import sys
 from datetime import datetime, timedelta, timezone
@@ -104,7 +102,8 @@ def stale_repos(ttl_seconds: int, include_uninitialized: bool = False) -> list[s
             try:
                 ts = datetime.fromisoformat(last["synced_at"])
             except ValueError:
-                stale.append(key); continue
+                stale.append(key)
+                continue
             if ts < cutoff:
                 stale.append(key)
     return stale
