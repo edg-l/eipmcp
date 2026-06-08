@@ -45,6 +45,13 @@ REPOS: dict[str, RepoSpec] = {
         spec_dirs=("src/engine",),  # prose Engine API .md (only .md/.py/.rst/.txt picked up)
         openrpc_dirs=("src/eth", "src/debug", "src/txpool", "src/testing", "src/engine/openrpc/methods"),
     ),
+    "devp2p": RepoSpec(
+        key="devp2p",
+        url="https://github.com/ethereum/devp2p.git",
+        # Flat doc repo: root specs (rlpx/discv4/enr/dnsdisc) plus caps/, discv5/,
+        # enr-entries/. "." captures all; the suffix filter drops images/.git.
+        spec_dirs=(".",),
+    ),
 }
 
 
@@ -76,6 +83,7 @@ GITHUB_REPO: dict[str, tuple[str, str]] = {
     "consensus-specs": ("ethereum", "consensus-specs"),
     "execution-specs": ("ethereum", "execution-specs"),
     "execution-apis": ("ethereum", "execution-apis"),
+    "devp2p": ("ethereum", "devp2p"),
 }
 
 

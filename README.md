@@ -13,6 +13,7 @@ and `requires` tools.
 | `consensus-specs`  | github.com/ethereum/consensus-specs     | Specs (path-based) |
 | `execution-specs`  | github.com/ethereum/execution-specs     | Specs + tests (path-based; `src/ethereum`, `docs`, `tests`) |
 | `execution-apis`   | github.com/ethereum/execution-apis      | JSON-RPC + Engine API methods (OpenRPC, per-method docs) |
+| `devp2p`           | github.com/ethereum/devp2p              | P2P wire protocols (path-based; RLPx, discv4/discv5, ENR, dnsdisc, caps) |
 
 `tests_for_eip(number)` reads from `execution-specs/tests/` — that's where the
 new EL test framework lives. `ethereum/execution-spec-tests` is on its way to

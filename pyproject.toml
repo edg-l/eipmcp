@@ -1,6 +1,6 @@
 [project]
 name = "eipmcp"
-version = "0.2.0"
+version = "0.3.0"
 description = "MCP server for fetching, indexing, and diffing Ethereum EIPs and specs"
 readme = "README.md"
 requires-python = ">=3.14"
