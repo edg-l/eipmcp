@@ -1,6 +1,6 @@
 [project]
 name = "eipmcp"
-version = "0.1.0"
+version = "0.2.0"
 description = "MCP server for fetching, indexing, and diffing Ethereum EIPs and specs"
 readme = "README.md"
 requires-python = ">=3.14"
@@ -9,6 +9,7 @@ dependencies = [
     "mcp>=1.12",
     "python-frontmatter>=1.1",
     "platformdirs>=4.2",
+    "pyyaml>=6.0",
 ]
 
 [project.optional-dependencies]

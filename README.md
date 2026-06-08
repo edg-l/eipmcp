@@ -12,6 +12,7 @@ and `requires` tools.
 | `ercs`             | github.com/ethereum/ERCs                | EIPs (numbered, frontmatter) |
 | `consensus-specs`  | github.com/ethereum/consensus-specs     | Specs (path-based) |
 | `execution-specs`  | github.com/ethereum/execution-specs     | Specs + tests (path-based; `src/ethereum`, `docs`, `tests`) |
+| `execution-apis`   | github.com/ethereum/execution-apis      | JSON-RPC + Engine API methods (OpenRPC, per-method docs) |
 
 `tests_for_eip(number)` reads from `execution-specs/tests/` — that's where the
 new EL test framework lives. `ethereum/execution-spec-tests` is on its way to
@@ -42,7 +43,7 @@ uv venv && uv pip install -e '.[dev]'
 
 ```bash
 eipmcp sync eips             # one repo
-eipmcp sync                  # all four repos
+eipmcp sync                  # all five repos
 ```
 
 Clones ~150 MB on first run and streams git progress to stderr. Subsequent
@@ -195,6 +196,17 @@ search_specs("RANDAO mix", repo="consensus-specs")
 
 Same FTS5 machinery, but over consensus-specs / execution-specs file bodies.
 Use for concept-level questions that aren't tied to an EIP number.
+
+### "How does eth_getBlockByHash work?"
+
+```
+search_specs("eth_getBlockByHash", repo="execution-apis")
+```
+
+execution-apis indexes one doc per JSON-RPC / Engine API method. Search by
+method name to get the spec path (e.g. `src/eth/block.yaml#eth_getBlockByHash`),
+then call `get_spec("execution-apis", path)` for the full parameter and return
+type details.
 
 ### "What shifted in EIPs this week?"
 

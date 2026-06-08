@@ -385,11 +385,32 @@ def delete_missing_eips(conn: sqlite3.Connection, repo: str, present: Iterable[i
     return len(to_delete)
 
 
-def delete_missing_specs(conn: sqlite3.Connection, repo: str, present: Iterable[str]) -> int:
+def delete_missing_specs(
+    conn: sqlite3.Connection,
+    repo: str,
+    present: Iterable[str],
+    *,
+    synthetic: bool | None = None,
+) -> int:
+    """`synthetic=None`: consider all rows (legacy). `synthetic=False`: only
+    rows whose path has no '#' fragment. `synthetic=True`: only rows whose
+    path contains a '#'. Lets prose (.md) and OpenRPC (synthetic #method)
+    indexers coexist under one repo key without deleting each other's rows.
+
+    Invariant: synthetic paths contain '#' (e.g.
+    'src/eth/block.yaml#eth_getBlockByHash'); real filesystem paths never do
+    for any currently tracked repo."""
     present_set = set(present)
-    existing = {r["path"] for r in conn.execute(
-        "SELECT path FROM specs WHERE repo=?", (repo,)
-    ).fetchall()}
+    if synthetic is None:
+        sql = "SELECT path FROM specs WHERE repo=?"
+        args: list[Any] = [repo]
+    elif synthetic is False:
+        sql = "SELECT path FROM specs WHERE repo=? AND path NOT LIKE '%#%'"
+        args = [repo]
+    else:
+        sql = "SELECT path FROM specs WHERE repo=? AND instr(path,'#')>0"
+        args = [repo]
+    existing = {r["path"] for r in conn.execute(sql, args).fetchall()}
     to_delete = existing - present_set
     if to_delete:
         conn.executemany(

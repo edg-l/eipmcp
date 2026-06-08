@@ -216,7 +216,12 @@ def list_specs(repo: str, glob: str | None = None) -> list[dict[str, Any]]:
 
 @mcp.tool()
 def get_spec(repo: str, path: str) -> dict[str, Any]:
-    """Fetch one spec file's full contents. Pair with `list_specs` to discover paths."""
+    """Fetch one spec file's full contents. Pair with `list_specs` to discover paths.
+
+    execution-apis stores per-method JSON-RPC / Engine API docs; paths carry a
+    '#<method>' fragment, e.g. 'src/eth/block.yaml#eth_getBlockByHash'. Search
+    by method name via search_specs to find the exact path first.
+    """
     with storage.connect() as conn:
         row = storage.get_spec(conn, repo, path)
     if not row:
@@ -236,6 +241,10 @@ def search_specs(
     Use for concept-level questions in consensus-specs / execution-specs that
     aren't tied to an EIP number — e.g. 'where is RANDAO mixed?', 'how is the
     blob commitment computed?'. Filter by repo to narrow CL vs EL.
+    execution-apis holds per-method JSON-RPC / Engine API docs (one doc per
+    method); search by method name, e.g. 'eth_getBlockByHash' or
+    'engine newPayload blob'. Those spec paths carry a '#<method>' fragment,
+    e.g. 'src/eth/block.yaml#eth_getBlockByHash'.
     """
     with storage.connect() as conn:
         return storage.search_specs_fts(
@@ -256,16 +265,22 @@ def diff_spec(
     Same `since` / `until` semantics as `diff_eip`. Use to track what changed in
     a spec file between syncs or releases.
     """
+    file_rel = path.split("#", 1)[0]
     spec = repos.get_repo(repo)
     repo_path = repos.ensure_clone(spec)
     old = _resolve_since(repo, since)
     if old is None:
         return {"error": "No prior sync recorded; nothing to diff against."}
     new = until or repos.head(repo_path)
-    patch = repos.diff(repo_path, old, new, file_rel=path, context=context)
+    patch = repos.diff(repo_path, old, new, file_rel=file_rel, context=context)
     return {
-        "path": path, "from": old, "to": new,
-        "diff": patch, "empty": not patch.strip(),
+        "path": path,
+        "file": file_rel,
+        "method": path.split("#", 1)[1] if "#" in path else None,
+        "from": old,
+        "to": new,
+        "diff": patch,
+        "empty": not patch.strip(),
     }
 
 
@@ -276,7 +291,7 @@ def sync_repo(repo: str) -> dict[str, Any]:
     """Pull a repo's latest commits and reindex it.
 
     Call when you need fresh data immediately rather than waiting for the next
-    auto-sync. repo ∈ {'eips','ercs','consensus-specs','execution-specs'}.
+    auto-sync. repo ∈ {'eips','ercs','consensus-specs','execution-specs','execution-apis'}.
     """
     return sync.sync_repo(repo)
 
@@ -318,6 +333,7 @@ def list_repos() -> list[dict[str, Any]]:
                     "url": spec.url,
                     "eip_dirs": list(spec.eip_dirs),
                     "spec_dirs": list(spec.spec_dirs),
+                    "openrpc_dirs": list(spec.openrpc_dirs),
                     "last_sync": last,
                 }
             )
@@ -368,6 +384,9 @@ def spec_resource(repo: str, path: str) -> str:
     URI form: `spec://consensus-specs/specs/electra/beacon-chain.md`. If your
     MCP client splits on `/`, percent-encode the path component instead:
     `spec://consensus-specs/specs%2Felectra%2Fbeacon-chain.md`.
+    For execution-apis OpenRPC method paths the `#` fragment separator must be
+    percent-encoded as `%23`, e.g.
+    `spec://execution-apis/src/eth/block.yaml%23eth_getBlockByHash`.
     """
     from urllib.parse import unquote
     decoded = unquote(path)

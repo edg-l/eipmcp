@@ -5,7 +5,7 @@ import sys
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from . import eips, repos, specs, storage
+from . import eips, openrpc, repos, specs, storage
 from .config import REPOS
 
 
@@ -23,13 +23,18 @@ def sync_repo(key: str) -> dict[str, Any]:
         spec_stats = specs.reindex_specs(spec)
     else:
         spec_stats = None
+    if spec.openrpc_dirs:
+        print(f"[eipmcp] indexing OpenRPC methods in {key}", file=sys.stderr, flush=True)
+        openrpc_stats = openrpc.reindex_openrpc(spec)
+    else:
+        openrpc_stats = None
     with storage.connect() as conn:
         storage.record_sync(conn, key, new, datetime.now(UTC).isoformat())
     changed = old != new
     print(
         f"[eipmcp] {key}: {old[:7]} → {new[:7]}"
         f" {'(updated)' if changed else '(no change)'}"
-        f" eips={eip_stats} specs={spec_stats}",
+        f" eips={eip_stats} specs={spec_stats} openrpc={openrpc_stats}",
         file=sys.stderr,
         flush=True,
     )
@@ -40,6 +45,7 @@ def sync_repo(key: str) -> dict[str, Any]:
         "changed": changed,
         "eips": eip_stats,
         "specs": spec_stats,
+        "openrpc": openrpc_stats,
     }
 
 

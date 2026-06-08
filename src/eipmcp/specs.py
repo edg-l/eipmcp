@@ -39,7 +39,7 @@ def reindex_specs(spec: RepoSpec) -> dict[str, Any]:
             storage.replace_refs(conn, spec.key, wf.rel_path, refs)
             present_paths.append(wf.rel_path)
             upserted += 1
-        deleted = storage.delete_missing_specs(conn, spec.key, present_paths)
+        deleted = storage.delete_missing_specs(conn, spec.key, present_paths, synthetic=False)
     return {
         "upserted": upserted, "deleted": deleted,
         "added": added, "churned": churned,

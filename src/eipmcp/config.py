@@ -15,6 +15,7 @@ class RepoSpec:
     url: str
     eip_dirs: tuple[str, ...] = ()   # subdirs that hold EIP-style frontmatter docs
     spec_dirs: tuple[str, ...] = ()  # subdirs that hold path-based spec docs
+    openrpc_dirs: tuple[str, ...] = ()  # subdirs of OpenRPC .yaml method-list files
 
 
 REPOS: dict[str, RepoSpec] = {
@@ -37,6 +38,12 @@ REPOS: dict[str, RepoSpec] = {
         key="execution-specs",
         url="https://github.com/ethereum/execution-specs.git",
         spec_dirs=("src/ethereum", "docs", "tests"),
+    ),
+    "execution-apis": RepoSpec(
+        key="execution-apis",
+        url="https://github.com/ethereum/execution-apis.git",
+        spec_dirs=("src/engine",),  # prose Engine API .md (only .md/.py/.rst/.txt picked up)
+        openrpc_dirs=("src/eth", "src/debug", "src/txpool", "src/testing", "src/engine/openrpc/methods"),
     ),
 }
 
@@ -68,6 +75,7 @@ GITHUB_REPO: dict[str, tuple[str, str]] = {
     "ercs": ("ethereum", "ERCs"),
     "consensus-specs": ("ethereum", "consensus-specs"),
     "execution-specs": ("ethereum", "execution-specs"),
+    "execution-apis": ("ethereum", "execution-apis"),
 }
 
 
