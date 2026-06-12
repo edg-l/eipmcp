@@ -104,8 +104,12 @@ def _backfill_fts(conn: sqlite3.Connection) -> None:
 @contextmanager
 def connect(path: Path | None = None) -> Iterator[sqlite3.Connection]:
     p = path or db_path()
-    conn = sqlite3.connect(p)
+    conn = sqlite3.connect(p, timeout=30.0)
     conn.row_factory = sqlite3.Row
+    # WAL lets a background sync write while tool calls read concurrently;
+    # busy_timeout makes the brief lock windows wait instead of erroring.
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA busy_timeout=30000")
     try:
         conn.executescript(SCHEMA)
         _migrate(conn)

@@ -66,6 +66,14 @@ HARDFORK_ALIASES: dict[str, list[str]] = {
     "osaka": ["osaka", "fusaka"],
     "glamsterdam": ["glamsterdam", "amsterdam", "gloas"],
     "amsterdam": ["amsterdam", "glamsterdam"],
+    # Hegotá = Heka (CL) + Bogotá (EL). Meta EIP title is accented ("Hegotá"),
+    # and lookup matches LOWER(title) LIKE %candidate%, so the accented form
+    # must be in the candidate list for a plain-ASCII query to resolve.
+    "hegota": ["hegotá", "heka", "bogotá"],
+    "hegotá": ["hegotá", "heka", "bogotá"],
+    "heka": ["heka", "hegotá"],
+    "bogota": ["bogotá", "heka"],
+    "bogotá": ["bogotá", "heka"],
     "cancun": ["cancun", "deneb"],
     "deneb": ["deneb", "cancun"],
     "shanghai": ["shanghai", "capella"],

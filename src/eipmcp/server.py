@@ -1,5 +1,6 @@
 """MCP server exposing EIP/spec tools and resources."""
 
+import threading
 from typing import Any
 
 from mcp.server.fastmcp import FastMCP
@@ -400,5 +401,9 @@ def spec_resource(repo: str, path: str) -> str:
 # ---------- Entry point ----------
 
 def run() -> None:
-    sync.auto_sync_if_stale()  # noop unless EIPMCP_SYNC_TTL is set
+    # Run auto-sync off the main thread: a stale-repo fetch + reindex can take
+    # tens of seconds, and blocking here delays the stdio handshake long enough
+    # for the MCP client to time out on startup. The server comes up instantly;
+    # the sync writes in the background (WAL lets tool reads run concurrently).
+    threading.Thread(target=sync.auto_sync_if_stale, daemon=True).start()
     mcp.run(transport="stdio")
